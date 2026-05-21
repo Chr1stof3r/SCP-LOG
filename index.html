@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FUNDAÇÃO SCP // LOG SEGURO 7734-ALPHA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --green: #00ff41;
+    --green-dim: #00aa2a;
+    --green-faint: #003a0e;
+    --green-glow: rgba(0,255,65,0.08);
+    --bg: #0a0a0a;
+    --red: #ff3131;
+    --yellow: #ffe600;
+    --grey: #4a4a4a;
+    --blue: #00ccff;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono','Courier New',monospace;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
+    pointer-events:none; z-index:999;
+  }
+
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background:rgba(0,255,65,0.012);
+    pointer-events:none; z-index:998;
+    animation:flicker 9s infinite;
+  }
+
+  @keyframes flicker {
+    0%,94%,100%{opacity:1} 95%{opacity:0.82} 96%{opacity:1} 97%{opacity:0.88} 98%{opacity:1}
+  }
+
+  /* ── STATIC OVERLAY ── */
+  #static-overlay {
+    position:fixed; inset:0; background:#000;
+    z-index:200; display:flex;
+    align-items:center; justify-content:center;
+    flex-direction:column; gap:12px;
+  }
+
+  #static-canvas { position:absolute; inset:0; width:100%; height:100%; opacity:0.9; }
+
+  .static-text {
+    position:relative; z-index:2;
+    font-size:22px; letter-spacing:6px;
+    color:#fff; text-shadow:0 0 20px #fff;
+    animation:glitch-st 0.15s infinite;
+  }
+
+  @keyframes glitch-st {
+    0%{transform:translate(0,0)} 25%{transform:translate(-2px,1px)}
+    50%{transform:translate(2px,-1px)} 75%{transform:translate(-1px,2px)} 100%{transform:translate(0,0)}
+  }
+
+  /* ── BOOT ── */
+  #boot-screen {
+    position:fixed; inset:0; background:var(--bg);
+    display:none; flex-direction:column;
+    justify-content:center; align-items:flex-start;
+    z-index:100; padding:60px;
+  }
+
+  .boot-line { font-size:13px; margin:3px 0; opacity:0; letter-spacing:1px; }
+  .boot-line.dim   { color:var(--green-dim); }
+  .boot-line.error { color:var(--red); }
+  .boot-line.warn  { color:var(--yellow); }
+
+  /* ── TERMINAL ── */
+  #main-terminal { display:none; max-width:880px; margin:0 auto; padding:24px 20px; }
+
+  .header {
+    border:1px solid var(--green-dim);
+    padding:16px 20px; margin-bottom:6px;
+    background:var(--green-glow); position:relative;
+  }
+
+  .header::before {
+    content:''; position:absolute;
+    top:-1px; left:20px; right:20px; height:1px;
+    background:var(--green); box-shadow:0 0 8px var(--green);
+  }
+
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+
+  .header-title { font-size:18px; letter-spacing:3px; text-shadow:0 0 10px var(--green); }
+
+  .header-badge {
+    font-size:11px; color:var(--red);
+    border:1px solid var(--red);
+    padding:3px 8px; letter-spacing:2px;
+    animation:blink-red 2s infinite;
+  }
+
+  @keyframes blink-red { 0%,49%{opacity:1} 50%,100%{opacity:0.3} }
+
+  .header-meta {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:4px; font-size:11px; color:var(--green-dim);
+    border-top:1px solid var(--green-faint); padding-top:10px;
+  }
+
+  .header-meta span { letter-spacing:1px; }
+  .header-meta span b { color:var(--green); }
+
+  .divider { color:var(--green-dim); font-size:11px; margin:8px 0; letter-spacing:1px; }
+
+  /* ── CHAT LOG ── */
+  .chat-log {
+    border:1px solid var(--green-faint);
+    padding:20px 16px; background:#080808; position:relative;
+  }
+
+  .log-header {
+    font-size:11px; color:var(--red);
+    margin-bottom:20px; padding-bottom:10px;
+    border-bottom:1px dashed #330000; letter-spacing:1px;
+    animation:blink-red 3s infinite;
+  }
+
+  /* ── MESSAGES ── */
+  .message { margin-bottom:18px; opacity:0; transform:translateY(4px); transition:opacity 0.3s,transform 0.3s; }
+  .message.visible { opacity:1; transform:translateY(0); }
+
+  .msg-header { display:flex; align-items:baseline; gap:12px; margin-bottom:5px; }
+
+  .msg-user { font-size:13px; letter-spacing:1px; font-weight:bold; }
+  .msg-user.revisor { color:var(--blue); text-shadow:0 0 6px #00ccff88; }
+  .msg-user.o5      { color:var(--yellow); text-shadow:0 0 6px #ffe60088; }
+  .msg-user.system  { color:var(--red); }
+
+  .msg-time { font-size:10px; color:var(--grey); letter-spacing:1px; }
+
+  .msg-text {
+    font-size:13px; color:#c8ffd4; line-height:1.7;
+    border-left:2px solid var(--green-faint); padding-left:10px;
+  }
+
+  .msg-text.system-text {
+    color:var(--red); border-left-color:var(--red);
+    font-size:11px; letter-spacing:1px;
+  }
+
+  /* ── CORRUPTED MESSAGE ── */
+  .msg-corrupted {
+    font-size:12px;
+    color:#1a3a1a;
+    border-left:2px solid #0a1a0a;
+    padding-left:10px;
+    line-height:1.8;
+    font-family:'Share Tech Mono',monospace;
+    position:relative;
+    overflow:hidden;
+    animation:corrupt-shift 4s infinite;
+  }
+
+  @keyframes corrupt-shift {
+    0%,90%,100% { filter:none; }
+    91% { filter:blur(0.5px) brightness(1.5); color:#2aff2a22; }
+    92% { filter:none; }
+    95% { filter:blur(0.3px); }
+    96% { filter:none; }
+  }
+
+  .corrupt-line {
+    display:block;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+
+  /* glitch slice effect on corrupted blocks */
+  .msg-corrupted::before {
+    content: attr(data-ghost);
+    position:absolute;
+    top:0; left:10px;
+    color:#ff000011;
+    font-size:12px;
+    animation:ghost-slide 6s infinite;
+    pointer-events:none;
+  }
+
+  @keyframes ghost-slide {
+    0%,100%  { transform:translate(0,0);   opacity:0; }
+    10%      { transform:translate(-3px,0); opacity:0.4; }
+    11%      { transform:translate(3px,0);  opacity:0; }
+    50%      { transform:translate(2px,0);  opacity:0.2; }
+    51%      { transform:translate(0,0);    opacity:0; }
+  }
+
+  .redacted-name {
+    background:var(--yellow); color:var(--yellow);
+    border-radius:2px; padding:0 3px;
+    cursor:not-allowed; user-select:none;
+  }
+  .redacted-name:hover { background:var(--red); color:var(--red); }
+
+  .o5-glitch { display:inline-block; animation:glitch-name 6s infinite; }
+
+  @keyframes glitch-name {
+    0%,90%,100%{transform:translate(0);filter:none}
+    91%{transform:translate(-2px,0);filter:blur(1px)}
+    92%{transform:translate(2px,0);filter:none}
+    93%{transform:translate(-1px,0);filter:blur(0.5px)}
+    94%{transform:translate(0)}
+  }
+
+  /* ── DOWNLOAD ── */
+  .download-section {
+    margin-top:20px;
+    border:1px solid var(--green-faint);
+    padding:16px 20px; background:#080808;
+    display:flex; align-items:center;
+    justify-content:space-between; gap:20px; flex-wrap:wrap;
+  }
+
+  .download-info { font-size:11px; color:var(--green-dim); line-height:2; letter-spacing:1px; }
+  .download-info b { color:var(--green); }
+
+  .btn-download {
+    background:transparent;
+    border:1px solid var(--green-dim);
+    color:var(--green);
+    font-family:'Share Tech Mono',monospace;
+    font-size:13px; letter-spacing:2px;
+    padding:12px 24px; cursor:pointer;
+    transition:all 0.2s; position:relative; overflow:hidden;
+  }
+
+  .btn-download::before {
+    content:''; position:absolute; inset:0;
+    background:var(--green); transform:translateX(-100%);
+    transition:transform 0.2s; z-index:0;
+  }
+
+  .btn-download:hover::before { transform:translateX(0); }
+  .btn-download:hover { color:#000; border-color:var(--green); box-shadow:0 0 20px var(--green); }
+  .btn-download span { position:relative; z-index:1; }
+
+  .footer {
+    margin-top:10px; border:1px solid var(--green-faint);
+    padding:10px 16px; display:flex;
+    justify-content:space-between; align-items:center;
+    font-size:11px; color:var(--green-dim);
+    letter-spacing:1px; flex-wrap:wrap; gap:6px;
+  }
+
+  .cursor {
+    display:inline-block; width:9px; height:14px;
+    background:var(--green); margin-left:4px;
+    vertical-align:middle;
+    animation:blink 1s step-end infinite;
+    box-shadow:0 0 6px var(--green);
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .input-line {
+    margin-top:16px; display:flex;
+    align-items:center; gap:8px;
+    color:var(--green-dim); font-size:13px; opacity:0.5;
+  }
+</style>
+</head>
+<body>
+
+<!-- STATIC -->
+<div id="static-overlay">
+  <canvas id="static-canvas"></canvas>
+  <div class="static-text">DESCRIPTOGRAFANDO...</div>
+</div>
+
+<!-- BOOT -->
+<div id="boot-screen">
+  <div style="width:100%;max-width:660px;">
+    <div class="boot-line"      id="b0">FUNDAÇÃO SCP // CAMADA DE COMUNICAÇÃO SEGURA v4.1.7</div>
+    <div class="boot-line dim"  id="b1">Inicializando canal criptografado.............. OK</div>
+    <div class="boot-line dim"  id="b2">Carregando protocolos de autenticação.......... OK</div>
+    <div class="boot-line dim"  id="b3">Verificando credenciais de acesso.............. OK</div>
+    <div class="boot-line warn" id="b4">AVISO: Esta sessão está sendo registrada e monitorada.</div>
+    <div class="boot-line dim"  id="b5">Recuperando arquivo de log..................... OK</div>
+    <div class="boot-line error" id="b6">!! ALERTA: CHAVE DE CRIPTOGRAFIA DESTRUÍDA      !!</div>
+    <div class="boot-line error" id="b7">!! CONTEÚDO DO LOG CORROMPIDO — DADOS PERDIDOS  !!</div>
+    <div class="boot-line"      id="b8" style="margin-top:16px;">Exibindo fragmentos recuperados. Integridade dos dados: <span style="color:var(--red);">CRÍTICA</span></div>
+  </div>
+</div>
+
+<!-- TERMINAL -->
+<div id="main-terminal">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-title">// CANAL SEGURO — LOG 7734-ALPHA //</div>
+        <div style="font-size:11px;color:var(--green-dim);margin-top:4px;letter-spacing:2px;">FUNDAÇÃO SCP — COMUNICAÇÕES INTERNAS</div>
+      </div>
+      <div class="header-badge">⚠ CORROMPIDO</div>
+    </div>
+    <div class="header-meta">
+      <span>SESSION ID: <b>7734-ALPHA</b></span>
+      <span>CRIPTOGRAFIA: <b style="color:var(--red);">DESTRUÍDA</b></span>
+      <span>STATUS: <b style="color:var(--red);">CORROMPIDO</b></span>
+      <span>DATA: <b>██/██/████</b></span>
+      <span>DURAÇÃO: <b>00:04:47</b></span>
+      <span>INTEGRIDADE: <b style="color:var(--red);">0%</b></span>
+    </div>
+  </div>
+
+  <div class="divider">// ──────────────────────────────────────── INÍCIO DO LOG ── //</div>
+
+  <div class="chat-log">
+
+    <div class="log-header">
+      ⚠ ERRO CRÍTICO — CHAVE DE DESCRIPTOGRAFIA DESTRUÍDA APÓS ENCERRAMENTO DA SESSÃO<br>
+      CONTEÚDO IRRECUPERÁVEL — EXIBINDO FRAGMENTOS CORROMPIDOS APENAS
+    </div>
+
+    <!-- SYSTEM -->
+    <div class="message" id="m1">
+      <div class="msg-header">
+        <span class="msg-user system">// SISTEMA</span>
+        <span class="msg-time">00:00:00</span>
+      </div>
+      <div class="msg-text system-text">CANAL SEGURO ESTABELECIDO. AMBAS AS PARTES AUTENTICADAS.</div>
+    </div>
+
+    <!-- MSG 2 - corrupted -->
+    <div class="message" id="m2">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:00:22</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="Conexão confirmada. Eu recebi o documento CREPP 1.">
+        <span class="corrupt-line" id="c2"></span>
+      </div>
+    </div>
+
+    <!-- MSG 3 - corrupted -->
+    <div class="message" id="m3">
+      <div class="msg-header">
+        <span class="msg-user revisor">[REVISOR]</span>
+        <span class="msg-time">00:01:10</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="Foi ideia minha, eu admito.">
+        <span class="corrupt-line" id="c3"></span>
+      </div>
+    </div>
+
+    <!-- MSG 4 - corrupted -->
+    <div class="message" id="m4">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:02:04</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="Mas AQUILO não é uma opção.">
+        <span class="corrupt-line" id="c4"></span>
+      </div>
+    </div>
+
+    <!-- MSG 5 - corrupted -->
+    <div class="message" id="m5">
+      <div class="msg-header">
+        <span class="msg-user revisor">[REVISOR]</span>
+        <span class="msg-time">00:02:51</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="Eu sei! Mas por que não permitir...">
+        <span class="corrupt-line" id="c5"></span>
+      </div>
+    </div>
+
+    <!-- MSG 6 - corrupted -->
+    <div class="message" id="m6">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:03:18</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="você se esqueceu do seu lugar?">
+        <span class="corrupt-line" id="c6"></span>
+      </div>
+    </div>
+
+    <!-- MSG 7 - corrupted -->
+    <div class="message" id="m7">
+      <div class="msg-header">
+        <span class="msg-user revisor">[REVISOR]</span>
+        <span class="msg-time">00:03:29</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="OK, ok. Foi ma-">
+        <span class="corrupt-line" id="c7"></span>
+      </div>
+    </div>
+
+    <!-- MSG 8/9/10 - corrupted (os 3 rápidos) -->
+    <div class="message" id="m8">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:03:30</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="OBEDEÇA!">
+        <span class="corrupt-line" id="c8"></span>
+      </div>
+    </div>
+
+    <div class="message" id="m9">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:03:31</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="SIGA!">
+        <span class="corrupt-line" id="c9"></span>
+      </div>
+    </div>
+
+    <div class="message" id="m10">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:03:32</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="FAÇA! Redija a seção 4.5 do CREPP 1.">
+        <span class="corrupt-line" id="c10"></span>
+      </div>
+    </div>
+
+    <!-- MSG 11 - corrupted -->
+    <div class="message" id="m11">
+      <div class="msg-header">
+        <span class="msg-user revisor">[REVISOR]</span>
+        <span class="msg-time">00:04:15</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="Não, não precisa! Eu entendi o meu erro...">
+        <span class="corrupt-line" id="c11"></span>
+      </div>
+    </div>
+
+    <!-- MSG 12 - corrupted -->
+    <div class="message" id="m12">
+      <div class="msg-header">
+        <span class="msg-user o5"><span class="o5-glitch"><span class="redacted-name">.....</span></span></span>
+        <span class="msg-time">00:04:44</span>
+      </div>
+      <div class="msg-corrupted" data-ghost="Negativo. Encerrando conexão.">
+        <span class="corrupt-line" id="c12"></span>
+      </div>
+    </div>
+
+    <!-- SYSTEM END -->
+    <div class="message" id="m13">
+      <div class="msg-header">
+        <span class="msg-user system">// SISTEMA</span>
+        <span class="msg-time">00:04:47</span>
+      </div>
+      <div class="msg-text system-text">CONEXÃO ENCERRADA PELO HOST REMOTO. LOG ARQUIVADO. CHAVE DE CRIPTOGRAFIA DESTRUÍDA.</div>
+    </div>
+
+    <div class="input-line">
+      <span style="color:var(--green);">$</span>
+      <span>_</span>
+      <span class="cursor"></span>
+    </div>
+
+  </div>
+
+  <div class="divider">// ────────────────────────────────────────── FIM DO LOG ── //</div>
+
+  <!-- DOWNLOAD -->
+  <div class="download-section">
+    <div class="download-info">
+      <div>DUMP BRUTO DISPONÍVEL — COLETADO ANTES DA DESTRUIÇÃO DA CHAVE</div>
+      <div>FORMATO: <b>TEXTO SIMPLES (.TXT)</b> &nbsp;|&nbsp; TAMANHO: <b>2.1 KB</b> &nbsp;|&nbsp; INTEGRIDADE: <b>100%</b></div>
+      <div style="color:var(--red);margin-top:4px;">⚠ ESTE ARQUIVO CONTÉM DADOS NÃO FILTRADOS. DISTRIBUA COM CAUTELA.</div>
+    </div>
+    <button class="btn-download" onclick="downloadLog()">
+      <span>▼ EXPORTAR LOG BRUTO</span>
+    </button>
+  </div>
+
+  <div class="footer">
+    <span>FUNDAÇÃO SCP // COMMS SEGURAS v4.1.7</span>
+    <span>INTEGRIDADE DO LOG: <span style="color:var(--red);">CRÍTICA</span></span>
+    <span style="color:var(--red);">⚠ ACESSO NÃO AUTORIZADO É CRIME CAPITAL</span>
+  </div>
+
+</div>
+
+<script>
+// ── STATIC ──
+const canvas = document.getElementById('static-canvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() { canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+function drawStatic() {
+  const w=canvas.width, h=canvas.height;
+  const id=ctx.createImageData(w,h); const d=id.data;
+  for(let i=0;i<d.length;i+=4){ const v=Math.random()*255; d[i]=d[i+1]=d[i+2]=v; d[i+3]=220; }
+  ctx.putImageData(id,0,0);
+}
+let si = setInterval(drawStatic,40);
+
+// ── CORRUPT TEXT GENERATOR ──
+const glitchChars = '█▓▒░╔╗╚╝║═╠╣╦╩╬▄▀■□▪▫◆◇○●∞§¶†‡';
+
+function corruptText(length) {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    if (Math.random() < 0.15) result += ' ';
+    else result += glitchChars[Math.floor(Math.random() * glitchChars.length)];
+  }
+  return result;
+}
+
+const corruptLengths = { c2:38, c3:22, c4:26, c5:32, c6:28, c7:14, c8:8, c9:6, c10:34, c11:36, c12:22 };
+
+function fillCorrupted() {
+  Object.entries(corruptLengths).forEach(([id, len]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = corruptText(len);
+  });
+}
+
+// Continuously re-corrupt to simulate live data decay
+function startCorruptLoop() {
+  fillCorrupted();
+  setInterval(() => {
+    const ids = Object.keys(corruptLengths);
+    // randomly pick 1-2 lines to re-corrupt each tick
+    const pick = ids.sort(()=>Math.random()-0.5).slice(0, 2);
+    pick.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = corruptText(corruptLengths[id]);
+    });
+  }, 800);
+}
+
+// ── SEQUENCE ──
+setTimeout(() => {
+  clearInterval(si);
+  document.getElementById('static-overlay').style.display='none';
+  const boot = document.getElementById('boot-screen');
+  boot.style.display='flex';
+  const lines = document.querySelectorAll('.boot-line');
+  const delays = [0,350,750,1150,1700,2300,2900,3400,4000];
+  lines.forEach((l,i) => setTimeout(()=>l.style.opacity='1', delays[i]));
+}, 2200);
+
+setTimeout(() => {
+  document.getElementById('boot-screen').style.display='none';
+  document.getElementById('main-terminal').style.display='block';
+  startCorruptLoop();
+  const order = ['m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','m13'];
+  order.forEach((id,i) => setTimeout(()=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.add('visible');
+  }, i*260));
+}, 7000);
+
+// ── DOWNLOAD ──
+function downloadLog() {
+  const log = `================================================================================
+  FUNDAÇÃO SCP // CANAL SEGURO — DUMP DE LOG
+  SESSION ID : 7734-ALPHA
+  DATA       : ##/##/####
+  DURAÇÃO    : 00:04:47
+  PARTIC.    : 2 (REVISOR / [IDENTIDADE OCULTADA])
+  CRIPT.     : AES-512 [CHAVE DESTRUÍDA]
+  STATUS     : RECUPERADO — DUMP BRUTO NÃO FILTRADO
+================================================================================
+
+[00:00:00] // SISTEMA
+  CANAL SEGURO ESTABELECIDO. AMBAS AS PARTES AUTENTICADAS.
+
+[00:00:22] [IDENTIDADE OCULTADA]
+  Conexão confirmada. Eu recebi o documento CREPP 1.
+  Por que na seção 4.5 o artigo sobre [REDATADO] foi colocado ali?
+  Pensei que seu trabalho fosse impedir que isso acontecesse.
+
+[00:01:10] [REVISOR]
+  Me desculpe [IDENTIDADE OCULTADA], porém era uma boa ideia de
+  opção, quanto mais melhor!
+
+[00:02:04] [IDENTIDADE OCULTADA]
+  Mas AQUILO não é uma opção.
+  Você sabe que aquilo ocasiona numa transgressão do código da Fundação!
+  E principalmente o [REDATADO] quebra muitas regras, aquilo nem era
+  para ser cogitado a colocar no documento.
+
+[00:02:51] [REVISOR]
+  Eu sei! Mas por que não permitir que os jogadores possam jogar
+  com o [REDATADO]? É uma chance única de ver como eles agiriam!
+
+[00:03:18] [IDENTIDADE OCULTADA]
+  [IDENTIDADE OCULTADA], você se esqueceu do seu lugar?
+  Você SABE o que está falando?
+
+[00:03:29] [REVISOR]
+  OK, ok. Foi ma-
+
+[00:03:30] [IDENTIDADE OCULTADA]
+  OBEDEÇA!
+
+[00:03:31] [IDENTIDADE OCULTADA]
+  SIGA!
+
+[00:03:32] [IDENTIDADE OCULTADA]
+  FAÇA! Redija a seção 4.5 do CREPP 1.
+  Irei mandar a [IDENTIDADE OCULTADA] te lembrar —
+  ela te entregará pessoalmente e te lembrará do seu trabalho.
+  Mas se eu ver que não adiantou, eu mesmo vou aí.
+
+[00:04:15] [REVISOR]
+  Não, não precisa! Eu entendi o meu erro...
+  Agradeço pelo comunicado... Mais alguma coisa?
+
+[00:04:44] [IDENTIDADE OCULTADA]
+  Negativo. Encerrando conexão.
+
+[00:04:47] // SISTEMA
+  CONEXÃO ENCERRADA PELO HOST REMOTO.
+  LOG ARQUIVADO. CHAVE DE CRIPTOGRAFIA DESTRUÍDA.
+
+================================================================================
+  FIM DO DUMP — FUNDAÇÃO SCP // COMMS SEGURAS v4.1.7
+  AVISO: A POSSE DESTE ARQUIVO SEM AUTORIZAÇÃO É CRIME CAPITAL https://drive.google.com/drive/folders/1VOIovLXxViKzQtxmZ8AlQtfu4u11qhGK?usp=drive_link
+================================================================================`;
+
+  const blob = new Blob([log],{type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'SCP_LOG_7734-ALPHA_DUMP.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
